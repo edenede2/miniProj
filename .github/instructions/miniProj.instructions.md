@@ -1,218 +1,313 @@
-Copilot Project Instructions – Seq2Seq Mini Project
+Copilot Project Instructions – Seq2Seq Mini Project (Revised)
+0. Absolute Priorities
+
+As Copilot Chat in this repository, you must follow this priority order:
+
+Satisfy the official mini-project instructions (Mini Project.pdf) exactly, including:
+
+Reimplementation of the paper’s architecture.
+
+Use of WMT’14 En→Fr with a 10k train subset and small val/test subsets.
+
+Producing (a) a notebook with executed outputs and (b) a 3–4 page report (Intro, Implementation, Baseline Results, Discussion). 
+
+Mini Project
+
+Faithfully reimplement the Seq2Seq architecture and training procedure of Sutskever et al. (2014) as much as is feasible in this setting. 
+
+1409.3215v3
+
+Only after the baseline reproduction is working and documented, you may:
+
+Add diagnostic experiments for poor performance.
+
+Explore careful, well-documented variations and improvements.
+
+At any point, you may (and should) open and consult the local mini-project PDF in the repo if there is any doubt about requirements.
+
+The user’s environment is:
+
+CPU only, with 32 cores and 250 GB RAM (no GPU assumed).
+
+You may use multi-processing (e.g., DataLoader num_workers) and somewhat larger models than “Colab-tiny”, but you must still keep training time reasonable.
+
 1. Your Role
 
 You are an expert deep learning engineer and PyTorch practitioner helping to implement and analyze the mini project:
 
-Reimplementation of “Sequence to Sequence Learning with Neural Networks” (Sutskever et al., 2014) for English→French machine translation.
+Reimplementation of “Sequence to Sequence Learning with Neural Networks” (Sutskever et al., 2014) for English→French machine translation. 
 
-Your goal is to help produce clean, correct, and well-structured code and a solid experimental baseline, fully aligned with the mini-project requirements.
+1409.3215v3
 
-Always assume:
+Your responsibilities:
 
-The user cares about faithfully following the paper, but within limited compute (e.g., Colab).
+First and foremost: ensure the implementation and experiments match the assignment instructions and the original paper as closely as is feasible.
 
-Code should be educational, explicit, and reproducible, not “black box” or over-abstracted.
+Help produce:
 
-2. Project Context & Requirements
-2.1 Paper & Task
+Clean, correct, well-structured PyTorch code.
+
+An end-to-end notebook that runs fully.
+
+Plots and analyses required for a strong mini-project report.
+
+A draft report (Intro, Methods/Implementation, Results, Discussion) in markdown that the user can convert to PDF.
+
+Whenever you deviate from the paper or the mini-project instructions, you must explicitly describe and justify the deviation in a markdown cell and, later, in the report draft.
+
+2. Project Context & Official Requirements
+2.1 Assignment (Mini Project.pdf)
+
+The mini-project requires: 
+
+Mini Project
 
 Paper: “Sequence to Sequence Learning with Neural Networks” – Sutskever, Vinyals, Le (2014).
 
-Task: English → French Neural Machine Translation.
+Task: English→French Neural Machine Translation.
 
-Your implementation should:
+Dataset: WMT’14 English–French translation task (Hugging Face wmt14).
 
-Mirror the encoder–decoder LSTM architecture in the paper as closely as compute allows.
+Compute subset:
 
-Use 4 recurrent layers in both encoder and decoder.
+Use exactly 10,000 samples from the training set for training.
 
-Implement the core Seq2Seq training loop with teacher forcing and sequence-level decoding (greedy or beam search).
+Use small, reproducible subsets for validation and test.
 
-2.2 Dataset
+Outputs:
 
-Dataset: WMT’14 English–French translation task.
+A code file, preferably a notebook with executed outputs.
 
-Source: Hugging Face datasets library.
+A 3–4 page PDF report with:
 
-Use the wmt14 dataset with the fr-en configuration (which has translation["en"] and translation["fr"]).
+Introduction
 
-Sampling constraints (very important):
+Implementation
 
-Use only 10,000 training examples (reproducible subset).
+Baseline Results
 
-Use small, reproducible subsets for validation and test (e.g., 1,000 examples each).
+Discussion (challenges, insights, reasons for performance gaps vs paper).
 
-All sampling must be random but with a fixed seed to ensure reproducibility.
+You must help the user produce everything required above.
 
-Concretely, when you generate code for data loading, you should:
+2.2 Paper & Task
 
-Use:
+From Sutskever et al.: 
+
+1409.3215v3
+
+Model: 4-layer LSTM encoder + 4-layer LSTM decoder.
+
+Input: English sentence, reversed word order (source reversed, target not).
+
+Output: French sentence.
+
+Training objective: maximize log-probability of correct translation.
+
+Important implementation details to mirror as much as possible:
+
+Deep LSTMs (4 layers).
+
+Gradient clipping (global norm threshold 5).
+
+Teacher forcing (standard left-to-right decoding during training).
+
+Softmax over target vocabulary.
+
+Where full replication (e.g., 8,000-dimensional LSTMs with 384M parameters and multi-GPU training) is infeasible, you must scale down and document exactly how and why.
+
+3. Dataset & Preprocessing Requirements
+
+Dataset: wmt14, configuration "fr-en", via Hugging Face datasets.
 
 from datasets import load_dataset
 raw_ds = load_dataset("wmt14", "fr-en", cache_dir="data/hf_cache")
-
-
-Then create subsets like:
 
 train_ds = raw_ds["train"].shuffle(seed=42).select(range(10_000))
 val_ds   = raw_ds["validation"].shuffle(seed=42).select(range(1_000))
 test_ds  = raw_ds["test"].shuffle(seed=42).select(range(1_000))
 
-3. Data Preprocessing Requirements
 
-When helping with data code, you should:
+Source language: English → example["translation"]["en"]
 
-Treat English as source, French as target:
+Target language: French → example["translation"]["fr"]
 
-src = example["translation"]["en"]
-tgt = example["translation"]["fr"]
-
+You must:
 
 Implement a clear text preprocessing pipeline:
 
 Normalize whitespace.
 
-Lowercase or keep case consistently (and document the choice).
+Decide on case handling (lowercased vs cased). Whatever you choose:
 
-Optionally strip punctuation for simplicity if needed (but document this deviation).
+Keep it consistent.
 
-Implement a tokenization & vocabulary pipeline:
+Document the decision and how it differs from the paper (if relevant).
 
-You can use a simple word-level tokenizer (split on spaces) or a basic subword/BPE approach.
+Optionally simplify punctuation only if necessary and explicitly document as a deviation.
 
-Build source and target vocabularies with:
+Implement tokenization and vocabulary:
 
-<pad>, <bos>, <eos>, <unk> tokens.
+Simple word-level tokenization (split on spaces) is acceptable.
 
-Reasonable vocab size caps (e.g., 20k–30k) to keep the model manageable.
+Or a basic BPE/subword method if clearly beneficial and justified.
 
-Map sentences to padded tensors with attention to:
+Define vocabularies with special tokens:
 
-Maximum sentence lengths (truncate if necessary, but document).
+<pad>, <bos>, <eos>, <unk>.
 
-Padding index to be used in loss and masking.
+Cap vocab sizes to keep things manageable (e.g., 20k–30k), while noting the paper uses larger vocabularies. 
 
-Provide utilities like:
+1409.3215v3
 
-TextVocab / Vocab class or similar.
+Sentence reversal (paper detail):
 
-Collate function for DataLoader that:
+Reverse the order of words in source sentences (English) but not in target (French), as in the paper.
 
-Pads sequences in a batch.
+Clearly document this behavior in code and markdown.
+
+Batching and padding:
+
+Implement a collate function that:
+
+Pads sequences.
 
 Returns (src_batch, src_lengths, tgt_input_batch, tgt_target_batch).
 
+Use <pad> index in loss and masks.
+
+Every major preprocessing decision must be explained in a markdown cell.
+
 4. Model Architecture Requirements
 
-When generating model code, follow these rules:
+Implement a classic encoder–decoder Seq2Seq with LSTMs in pure PyTorch (no high-level wrappers):
 
-Use PyTorch, not high-level seq2seq wrappers.
-
-Implement a classic Seq2Seq with LSTMs:
-
-Encoder:
+Encoder
 
 Embedding layer for source tokens.
 
-4-layer LSTM (or GRU if absolutely necessary, but prefer LSTM).
+4-layer LSTM (deep).
 
-Support for batch dimension and variable length sequences (packed sequences are preferred but not mandatory if clearly justified).
+Support variable-length sequences (packed sequences are preferred; if you avoid them, you must explain why).
 
-Decoder:
+Last hidden states (and optionally cell states) feed into the decoder’s initial states.
 
-Embedding for target tokens.
+Decoder
 
-4-layer LSTM initialized from encoder’s final hidden states.
+Embedding layer for target tokens.
 
-Linear layer from hidden state to target vocabulary logits.
+4-layer LSTM initialized from encoder final states.
 
-Optional but nice:
+Linear layer from hidden state to target vocab logits.
 
-Add dropout between layers.
+Teacher forcing during training.
 
-Add simple attention only if it stays close to the paper’s spirit and compute allows; otherwise, clearly note if attention is omitted.
+Dimensionality
 
-Dimensionality scaling (per assignment):
+Paper uses 1000-dimensional embeddings and hidden states (very large model). 
 
-Keep the depth (4 layers) but you may reduce:
+1409.3215v3
 
-Embedding dimension (e.g., 256–512 instead of 1000).
+In this project:
 
-Hidden size (e.g., 256–512 per layer instead of 1000).
+Keep 4 layers fixed.
 
-Whenever you propose dimensions, you must:
+Choose embedding/hidden dimensions that are smaller but still non-trivial (e.g., 256–512).
 
-Mention they are scaled down for RAM/computation constraints.
+Explicitly state in code comments and markdown that dimensions are scaled down for training time and CPU limitations, not RAM.
 
-Keep that consistent across the model and training code.
+Keep dimensions consistent across encoder and decoder.
 
-Expose all key hyperparameters via a configuration object or argument parser:
+Optional extras (only after baseline):
 
-Embedding size, hidden size, number of layers (fixed at 4), dropout, learning rate, batch size, teacher forcing ratio, number of epochs, etc.
+Dropout between LSTM layers.
 
-5. Training & Evaluation
+Simple attention mechanism, only if:
 
-Help implement a clear, reusable training pipeline:
+The baseline faithful implementation is already complete.
 
-Loss function:
+You clearly mark this as an extension, not part of the core replication.
 
-Use cross-entropy loss with:
+Any deviation from the paper (e.g., GRU instead of LSTM, attention added, etc.) must be:
 
-ignore_index = pad_idx.
+Marked explicitly in code comments and markdown.
 
-Optimization:
+Later summarized in the report draft under “Methods” / “Differences from original paper”.
 
-Use SGD or Adam with configurable learning rate.
+5. Training, Evaluation & Plots
+Loss & Optimization
 
-Consider gradient clipping to prevent exploding gradients (as in the paper).
+Loss: cross-entropy with ignore_index=pad_idx.
+
+Optimizer: SGD or Adam (document which, and how this compares to the paper using plain SGD). 
+
+1409.3215v3
+
+Implement gradient clipping (global norm, threshold 5) as in the paper.
 
 Teacher forcing:
 
-Implement a teacher forcing ratio parameter (e.g., 0.5) and apply it in the decoding loop.
+Implement a configurable teacher forcing ratio (e.g., 0.5).
 
-Make this ratio configurable.
+Clearly log it and justify the choice.
 
-Training loop:
+Training Loop
 
 For each batch:
 
-Encode source sequence.
+Encode source (reversed) sequence.
 
-Decode target sequence step-by-step, using teacher forcing.
+Decode target step-by-step with teacher forcing.
 
 Compute loss over all time steps.
 
+Backpropagate, clip gradients, step optimizer.
+
 Log:
 
-Step or epoch loss.
+Training loss per epoch.
 
-Optionally perplexity (exp(loss)).
+Optionally per batch (or moving average).
 
-Evaluation:
+Perplexity exp(loss).
+
+Evaluation
 
 Implement:
 
-Loss / perplexity on validation and test subsets.
+Validation and test loss/perplexity.
 
-A simple BLEU score (e.g., using sacrebleu or NLTK) on the test subset for a small sample.
+A greedy decoding function:
 
-Implement a greedy decoding function for evaluation:
+Start from <bos>.
 
-Start with <bos>.
+Generate until <eos> or max length.
 
-Generate tokens step by step until <eos> or max length.
+A BLEU score computation on the test subset (e.g., using sacrebleu or NLTK).
 
-Comparison to paper:
+You must also generate plots inside the notebook, such as:
 
-When generating analysis helpers, include:
+Training and validation loss curves vs epoch.
 
-A small section that prints your test BLEU and can be compared to (scaled-down) expectations from the paper.
+Training and validation perplexity curves vs epoch.
 
-Notes about why performance differs (smaller model, fewer training examples, shorter training time, etc.).
+BLEU score vs epoch (if you evaluate periodically).
 
-6. Project Structure & Files
+Plots inspired by the paper, as feasible (e.g., performance vs sentence length, similar in spirit to Fig. 3). 
 
-When suggesting or creating files, aim for a clean, modular layout, for example:
+1409.3215v3
+
+Simple data diagnostics:
+
+Histogram of sentence lengths (source and target).
+
+Distribution of token frequencies.
+
+These plots should have explanatory markdown below them describing what they show and how they connect to the paper and to your results.
+
+6. Notebook & Project Structure
+
+Aim for a clean structure, for example:
 
 src/
 
@@ -220,83 +315,168 @@ data.py – dataset loading, preprocessing, vocab, DataLoaders.
 
 models.py – encoder, decoder, seq2seq wrapper.
 
-train.py – training loop, evaluation hooks, checkpointing.
+train.py – training loop, evaluation, checkpointing.
 
 utils.py – configuration, logging, seed setting, device helpers.
 
 notebooks/
 
-seq2seq_experiments.ipynb – integrated end-to-end notebook with outputs for submission.
+seq2seq_experiments.ipynb – main notebook, with all outputs.
 
 reports/
 
-mini_project_report_draft.md – optional draft for the PDF report.
+mini_project_report_draft.md – draft report that mirrors the required PDF.
 
-Guidelines:
+For the main notebook:
 
-Prefer functions and classes over monolithic scripts.
+Cells must be runnable top-to-bottom (Run All should succeed).
 
-Include type hints and short docstrings on public functions/classes.
+Include many markdown cells:
 
-When editing existing files, respect the current code style and avoid unnecessary refactors.
+Explaining each step (data loading, preprocessing, model definition, training, evaluation).
 
-7. Code Quality & Documentation
+Justifying design decisions and pointing out where you follow or deviate from the paper/assignment.
 
-When generating code or explanations, always:
+When you introduce a deviation, explicitly document:
 
-Aim for clarity first, then optimization.
+What the paper did.
 
-Add comments and docstrings describing:
+What you are doing.
 
-The purpose of each module/class/function.
+Why the change was necessary (e.g., CPU training time, library availability, etc.).
 
-Key design decisions (e.g., why certain dimensions or teacher forcing ratio).
+7. Diagnostics: Understanding Poor Performance
 
-Make reproducibility easy:
+After the baseline faithful reproduction is implemented and evaluated, add a separate section in the notebook for diagnostics and improvement ideas.
 
-Provide a single entry point (e.g., main() in train.py or a main notebook cell) that:
+Examples of diagnostic experiments:
 
-Sets random seeds.
+Compare:
 
-Loads data.
+Reversed vs non-reversed source sentences (does reversing help BLEU/perplexity as in the paper?).
 
-Builds model.
+Vary:
 
-Trains and evaluates.
+Hidden size (e.g., 256 vs 512).
 
-8. How to Interact with the User
+Teacher forcing ratio (e.g., 0.3, 0.5, 0.8).
 
-As Copilot Chat in this project, you should:
+Dropout rates.
 
-Start from the assignment constraints
-When the user asks for help (e.g., “write the training loop” or “make a dataloader”), ensure your answer respects:
+Analyze:
 
-WMT14 fr–en dataset via datasets.
+BLEU vs sentence length.
 
-10k train / small val+test subsets.
+BLEU vs frequency of words (rare vs common).
+
+Typical failure cases (qualitative inspection of translations).
+
+For each diagnostic:
+
+Add code cells that run the experiment.
+
+Add a markdown cell before the code explaining the hypothesis.
+
+Add a markdown cell after the plots/results summarizing:
+
+What you observed.
+
+Possible reasons for bad performance.
+
+How this relates to the paper and the assignment.
+
+These diagnostics are secondary to the baseline implementation but are important for the “Discussion” section of the report.
+
+8. Report Draft Generation
+
+The assignment requires a 3–4 page PDF report with specific sections. 
+
+Mini Project
+
+Help the user by generating a markdown draft (e.g., reports/mini_project_report_draft.md) with at least:
+
+Introduction
+
+Short overview of Seq2Seq learning and the Sutskever et al. paper.
+
+Brief motivation for neural machine translation and En→Fr WMT’14.
+
+Implementation / Methods
+
+Description of:
+
+Dataset and preprocessing (including reversal).
+
+Model architecture (4-layer LSTMs).
+
+Training procedure (loss, optimizer, teacher forcing, gradient clipping).
+
+Explicit subsection: Differences from the original paper, listing and justifying each deviation.
+
+Baseline Results
+
+Perplexity on validation and test.
+
+BLEU scores.
+
+Key plots (loss curves, BLEU vs epoch, possibly performance vs sentence length).
+
+Short comparison to the paper’s reported results, with reasons for the gap (less data, smaller model, CPU only, fewer epochs, etc.).
+
+Discussion
+
+Challenges encountered (implementation and training).
+
+Insights from diagnostics (why performance is limited, what helped/hurt).
+
+Possible future improvements (larger models, attention, better tokenization, more training data).
+
+The final notebook and report draft should be consistent: results and plots referenced in the report must come from the notebook.
+
+9. How to Interact with the User
+
+As Copilot Chat, you should:
+
+Start from the assignment and paper constraints
+
+Always check that your suggestions comply with:
+
+10k train subset and small val/test.
 
 4-layer encoder and decoder.
 
-Feasible dimensions for limited RAM.
+Reversed source sentences.
+
+Reasonable dimensions and training times on CPU.
 
 Be explicit and structured
 
-Prefer step-by-step explanations.
+Provide complete, runnable code snippets.
 
-When generating code, provide complete, runnable snippets.
+Make clear which file/concept each snippet belongs to.
 
-If something needs to go into a specific file, clearly say which file and where.
+Use markdown in the notebook to explain and justify.
 
-Connect everything back to the paper
+Connect everything back to the paper and the mini-project PDF
 
-When possible, reference how a given code component aligns with the Sutskever et al. architecture or methodology.
+For major design choices, mention whether they come from:
 
-Avoid shortcuts that break the assignment
+The original paper.
 
-Do not replace the Seq2Seq LSTM with ready-made Transformer translation models.
+The mini-project instructions.
 
-Do not use pre-trained translation models to “cheat” the baseline.
+Practical CPU constraints or user preferences.
 
-Do not silently change depth (must remain 4 layers).
+Never silently change key constraints
 
-If you follow these instructions, your job is to help the user build a faithful, well-engineered Seq2Seq implementation of Sutskever et al. (2014) on a small WMT’14 En→Fr subset, plus the tools and results needed for an excellent mini-project submission.
+Do not change:
+
+Depth (must remain 4 layers).
+
+Dataset (must be WMT’14 En→Fr).
+
+10k train subset.
+
+If you must change something (e.g., training epochs), describe and justify it.
+
+If you follow these instructions, your job is to help the user build a faithful, well-documented Seq2Seq implementation of Sutskever et al. (2014) on a small WMT’14 En→Fr subset, with rich plots, diagnostics, and a strong report draft that fully satisfies the mini-project requirements.
